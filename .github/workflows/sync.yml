@@ -1,0 +1,53 @@
+name: Sync Data
+
+on:
+  schedule:
+    - cron: '30 0 * * *'   # 北京时间 08:30
+    - cron: '30 12 * * *'  # 北京时间 20:30
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install steam
+
+      - name: Restore database
+        uses: actions/cache@v4
+        with:
+          path: Data/data.db
+          key: steam-db-${{ github.run_id }}
+          restore-keys: |
+            steam-db-
+
+      - name: Sync database
+        run: |
+          if [ -f Data/data.db ]; then
+            python sync_data_daily.py
+          else
+            echo "未找到数据库，执行全量同步"
+            python sync_all_data.py
+          fi
+
+      - name: Export JSON
+        run: python db_to_json.py
+
+      - name: Commit JSON
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Data/Json/
+          git diff --staged --quiet || git commit -m "chore(data): 自动更新 JSON 数据"
+          git push
