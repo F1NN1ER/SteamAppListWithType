@@ -12,7 +12,7 @@
 
 ## 说明
 
-- 全类型数据：`Data/Json/All.json`
+- 全类型数据：`Data/All.json`
 
 ## 预览
 
