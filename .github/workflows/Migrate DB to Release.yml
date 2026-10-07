@@ -1,0 +1,39 @@
+name: Migrate DB to Release
+on: workflow_dispatch
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore from cache
+        uses: actions/cache@v4
+        with:
+          path: Data/data.db
+          key: steam-db-migrate-${{ github.run_id }}
+          restore-keys: steam-db-
+
+      - name: Upload to release
+        run: |
+          if [ -f Data/data.db ]; then
+            gh release upload db Data/data.db --clobber 2>/dev/null || \
+              gh release create db --title "Database" \
+                --notes "Migrated from cache" --prerelease Data/data.db
+            echo "迁移完成"
+          else
+            echo "cache 中未找到 db" >&2
+            exit 1
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 清理 cache（可选）
+        run: |
+          gh extension install actions/gh-actions-cache
+          gh actions-cache delete "steam-db-" --all -R ${{ github.repository }} --confirm
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
