@@ -5,7 +5,7 @@ import sqlite3
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_DIR = os.path.join(BASE_DIR, "Data")
 DB_PATH = os.path.join(DB_DIR, "data.db")
-JSON_PATH = os.path.join(DB_DIR, "Json")
+JSON_PATH = DB_DIR
 
 
 def generate_json(conn):
