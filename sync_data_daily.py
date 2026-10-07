@@ -43,7 +43,16 @@ def main() -> int:
         resp = fetch_changes(client, last_cn)
 
         if resp.force_full_app_update:
-            print("变更跨度过大，请运行 sync_all_data 重新全量同步")
+            current_cn = resp.current_change_number
+            if current_cn:
+                set_state(
+                    conn,
+                    last_change_number=current_cn,
+                    last_run=datetime.now().isoformat(timespec="seconds"),
+                )
+                print(f"变更跨度过大，已将 change_number 更新为 {current_cn}")
+            else:
+                print("变更跨度过大，请运行 sync_all_data 重新全量同步")
             return 1
 
         current_cn = resp.current_change_number

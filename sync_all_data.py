@@ -214,6 +214,19 @@ def main() -> int:
             if empty_streak >= EMPTY_STREAK_STOP:
                 print("已完成本次扫描")
                 break
+
+        resp = client.get_changes_since(
+            last_cn or 1, app_changes=False, package_changes=False
+        )
+        if resp is not None:
+            real_cn = resp.current_change_number
+            if real_cn and real_cn > last_cn:
+                set_state(
+                    conn,
+                    last_change_number=real_cn,
+                    last_run=datetime.now().isoformat(timespec="seconds"),
+                )
+                print(f"已将 change_number 更新为服务器真实值 {real_cn}")
     finally:
         client.logout()
         conn.close()

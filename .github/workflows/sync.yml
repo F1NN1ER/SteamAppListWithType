@@ -35,7 +35,7 @@ jobs:
       - name: Sync database
         run: |
           if [ -f Data/data.db ]; then
-            python sync_data_daily.py
+            python sync_data_daily.py || python sync_all_data.py
           else
             echo "未找到数据库，执行全量同步"
             python sync_all_data.py
