@@ -24,13 +24,13 @@ jobs:
       - name: Install dependencies
         run: pip install "steam[client]==1.4.4"
 
-      - name: Restore database
-        uses: actions/cache@v4
-        with:
-          path: Data/data.db
-          key: steam-db-${{ github.run_id }}
-          restore-keys: |
-            steam-db-
+      - name: Download database
+        run: |
+          mkdir -p Data
+          gh release download db --pattern data.db --dir Data --clobber || \
+            echo "未找到 release，将执行全量同步"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Sync database
         run: |
@@ -40,6 +40,15 @@ jobs:
             echo "未找到数据库，执行全量同步"
             python sync_all_data.py
           fi
+
+      - name: Upload database
+        if: always()
+        run: |
+          if [ -f Data/data.db ]; then
+            gh release upload db Data/data.db --clobber
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Export JSON
         if: always()

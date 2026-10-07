@@ -18,7 +18,7 @@ def save_json(path: str, obj) -> None:
 def generate_json(conn):
     os.makedirs(JSON_PATH, exist_ok=True)
     cur = conn.cursor()
-    cur.execute("SELECT appid, type FROM Type")
+    cur.execute("SELECT appid, type FROM Info")
     rows = cur.fetchall()
 
     # All.json

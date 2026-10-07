@@ -27,17 +27,22 @@ def init_db():
     os.makedirs(DB_DIR, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
-    # 类型表
     cur.execute("""
-                create table if not exists Type
+                create table if not exists Info
                 (
-                    appid         integer primary key,
-                    name          text,
-                    type          text,
-                    change_number integer,
-                    updated_at    text
+                    appid          integer primary key,
+                    name           text,
+                    type           text,
+                    limited_status text
                 )
                 """)
+    cur.execute("select name from sqlite_master where type='table' and name='Type'")
+    if cur.fetchone():
+        cur.execute(
+            "insert or ignore into Info (appid, name, type, limited_status) "
+            "select appid, name, type, null from Type"
+        )
+        cur.execute("drop table Type")
     # 记录表
     cur.execute("""
                 create table if not exists sync_state
@@ -99,23 +104,20 @@ def set_state(conn, last_appid=None, last_change_number=None, last_run=None):
 # 提取appid、名称、类型为待写入行
 def extract_rows(apps: dict) -> list:
     rows = []
-    now = datetime.now().isoformat(timespec="seconds")
     for appid, info in apps.items():
         if isinstance(info, dict):
             common = info.get("common", {}) or {}
             name = common.get("name")
             app_type = common.get("type")
-            change_number = info.get("_change_number")
         else:
             common = getattr(info, "common", None)
             name = getattr(common, "name", None) if common else None
             app_type = getattr(common, "type", None) if common else None
-            change_number = getattr(info, "_change_number", None)
 
         if name is None:
             continue
         rows.append(
-            (int(appid), name, (app_type or "unknown").lower(), change_number, now)
+            (int(appid), name, (app_type or "unknown").lower(), None)
         )
     return rows
 
@@ -126,9 +128,9 @@ def save_rows(conn, rows):
         return
     cur = conn.cursor()
     cur.executemany(
-        """insert or replace into Type
-           (appid, name, type, change_number, updated_at)
-           values (?, ?, ?, ?, ?)""",
+        """insert or replace into Info
+           (appid, name, type, limited_status)
+           values (?, ?, ?, ?)""",
         rows,
     )
     conn.commit()
