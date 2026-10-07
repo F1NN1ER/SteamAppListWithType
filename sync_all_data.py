@@ -13,7 +13,7 @@ EMPTY_STREAK_STOP = 2
 # 硬上限
 HARD_CEILING = 100_000_000
 # 段内每处理多少个 id 打印一次
-PROGRESS_EVERY = 10_00
+PROGRESS_EVERY = 1_000
 # 单批请求的 appid 数量
 BATCH_SIZE = 1000
 
@@ -164,6 +164,20 @@ def main() -> int:
     ceiling = HARD_CEILING
     start = last_appid + 1
 
+    # 首次运行：扫描前获取 baseline changenumber，防止扫描超时后为 0
+    if not last_cn:
+        resp = client.get_changes_since(
+            1, app_changes=False, package_changes=False
+        )
+        if resp is not None and resp.current_change_number:
+            last_cn = resp.current_change_number
+            set_state(
+                conn,
+                last_change_number=last_cn,
+                last_run=datetime.now().isoformat(timespec="seconds"),
+            )
+            print(f"baseline changenumber: {last_cn}")
+
     print(f"从起点 {start} 处开始扫描")
 
     empty_streak = 0
@@ -186,28 +200,16 @@ def main() -> int:
             rows = extract_rows(apps)
             save_rows(conn, rows)
             total_new += len(rows)
-            # change number
-            max_cn = max(
-                (
-                    int(info.get("_change_number") or 0)
-                    for info in apps.values()
-                    if isinstance(info, dict)
-                ),
-                default=0,
-            )
-            new_cn = max(last_cn, max_cn)
-            # 保存状态
             set_state(
                 conn,
                 last_appid=chunk_end,
-                last_change_number=new_cn,
                 last_run=datetime.now().isoformat(timespec="seconds"),
             )
-            last_appid, last_cn = chunk_end, new_cn
+            last_appid = chunk_end
 
             print(
                 f"checkpoint: 扫到 {chunk_end}，本段新增 {len(rows)} 条，"
-                f"累计 {total_new} 条，change_number {new_cn}"
+                f"累计 {total_new} 条"
             )
 
             empty_streak = empty_streak + 1 if not rows else 0

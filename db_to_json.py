@@ -8,6 +8,13 @@ DB_PATH = os.path.join(DB_DIR, "data.db")
 JSON_PATH = DB_DIR
 
 
+def save_json(path: str, obj) -> None:
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(obj, f, indent=2)
+    os.replace(tmp, path)
+
+
 def generate_json(conn):
     os.makedirs(JSON_PATH, exist_ok=True)
     cur = conn.cursor()
@@ -16,8 +23,7 @@ def generate_json(conn):
 
     # All.json
     all_data = {str(appid): type_ for appid, type_ in rows}
-    with open(os.path.join(JSON_PATH, "All.json"), "w", encoding="utf-8") as f:
-        json.dump(all_data, f, indent=2)
+    save_json(os.path.join(JSON_PATH, "All.json"), all_data)
     print(f"已导出 {len(all_data)} 条记录到 All.json")
 
     # type.json
@@ -28,8 +34,7 @@ def generate_json(conn):
 
     for type_name, data in grouped.items():
         filename = f"{type_name}.json"
-        with open(os.path.join(JSON_PATH, filename), "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
+        save_json(os.path.join(JSON_PATH, filename), data)
         print(f"已导出 {len(data)} 条记录到 {filename}")
 
     print(f"共导出 {len(grouped)} 个分类文件到 {JSON_PATH}")
