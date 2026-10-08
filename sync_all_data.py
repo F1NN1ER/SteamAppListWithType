@@ -101,6 +101,14 @@ def set_state(conn, last_appid=None, last_change_number=None, last_run=None):
     conn.commit()
 
 
+# 获取 Info 表中 appid 的最大值
+def get_max_appid(conn):
+    cur = conn.cursor()
+    cur.execute("select max(appid) from Info")
+    row = cur.fetchone()
+    return row[0] if row and row[0] else 0
+
+
 # 提取appid、名称、类型为待写入行
 def extract_rows(apps: dict) -> list:
     rows = []
@@ -162,7 +170,8 @@ def main() -> int:
     client = SteamClient()
     conn = init_db()
     login(client)
-    last_appid, last_cn, _ = get_state(conn)
+    _, last_cn, _ = get_state(conn)
+    last_appid = get_max_appid(conn)
     ceiling = HARD_CEILING
     start = last_appid + 1
 
@@ -202,12 +211,13 @@ def main() -> int:
             rows = extract_rows(apps)
             save_rows(conn, rows)
             total_new += len(rows)
+            max_appid = get_max_appid(conn)
             set_state(
                 conn,
-                last_appid=chunk_end,
+                last_appid=max_appid,
                 last_run=datetime.now().isoformat(timespec="seconds"),
             )
-            last_appid = chunk_end
+            last_appid = max_appid
 
             print(
                 f"checkpoint: 扫到 {chunk_end}，本段新增 {len(rows)} 条，"
