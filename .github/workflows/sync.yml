@@ -2,9 +2,15 @@ name: Sync Data
 
 on:
   schedule:
-    - cron: '30 0 * * *'   # 北京时间 08:30
-    - cron: '30 12 * * *'  # 北京时间 20:30
+    # Steam PICS 的变更列表只保留约 5000 个 change number（约几小时）。
+    # 轮询间隔必须足够短，否则中间产生的 app 会被永久跳过。
+    - cron: '17 */2 * * *'
   workflow_dispatch:
+    inputs:
+      scan_from:
+        description: '全量回填起点 appid（例如填 1；留空则只做增量同步）'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -12,7 +18,7 @@ permissions:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
 
     steps:
       - uses: actions/checkout@v4
@@ -34,11 +40,20 @@ jobs:
 
       - name: Sync database
         run: |
-          if [ -f Data/data.db ]; then
-            python sync_data_daily.py || python sync_all_data.py
+          if [ -n "${{ github.event.inputs.scan_from }}" ]; then
+            echo "手动全量回填，从 appid ${{ github.event.inputs.scan_from }} 开始"
+            python sync_all_data.py --scan-from "${{ github.event.inputs.scan_from }}"
+            python sync_data_daily.py || true
+          elif [ -f Data/data.db ]; then
+            python sync_data_daily.py || {
+              echo "增量同步要求全量重建，执行回填"
+              python sync_all_data.py
+              python sync_data_daily.py
+            }
           else
             echo "未找到数据库，执行全量同步"
             python sync_all_data.py
+            python sync_data_daily.py
           fi
 
       - name: Upload database
